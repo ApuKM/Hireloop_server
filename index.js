@@ -31,7 +31,9 @@ async function startServer() {
 
     const db = client.db(process.env.DB_NAME)
     const jobsCollection = db.collection("jobs");
+    const companyCollection = db.collection("companies")
 
+    // Jobs apis
     app.get("/api/jobs", async(req, res) => {
         const {companyId, status} = req.query;
         let query ={}
@@ -49,6 +51,13 @@ async function startServer() {
         const job = req.body;
         const result = await jobsCollection.insertOne(job);
         res.send(result)
+    })
+
+    // Company apis
+    app.post("/api/company", async(req, res) => {
+      const company = req.body;
+      const result = await companyCollection.insertOne(company)
+      res.send(result)
     })
 
     await client.db("admin").command({ ping: 1 });
