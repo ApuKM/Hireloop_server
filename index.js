@@ -54,6 +54,13 @@ async function startServer() {
     })
 
     // Company apis
+
+    app.get("/api/my/companies", async(req, res) => {
+      const {recruiterId} = req.query;
+      const result = await companyCollection.find({recruiterId}).toArray();
+      res.send(result)
+    })
+
     app.post("/api/company", async(req, res) => {
       const company = req.body;
       const result = await companyCollection.insertOne(company)
