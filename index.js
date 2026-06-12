@@ -49,21 +49,29 @@ async function startServer() {
 
     app.post("/api/jobs", async(req, res) => {
         const job = req.body;
-        const result = await jobsCollection.insertOne(job);
+        const newJob = {
+          ...job,
+          createdAt: new Date(),
+        }
+        const result = await jobsCollection.insertOne(newJob);
         res.send(result)
     })
 
     // Company apis
 
-    app.get("/api/my/companies", async(req, res) => {
+    app.get("/api/my/company", async(req, res) => {
       const {recruiterId} = req.query;
-      const result = await companyCollection.find({recruiterId}).toArray();
-      res.send(result)
+      const result = await companyCollection.findOne({recruiterId})
+      res.send(result || {})
     })
 
     app.post("/api/company", async(req, res) => {
       const company = req.body;
-      const result = await companyCollection.insertOne(company)
+      const newCompany = {
+        ...company,
+        createdAt: new Date(),
+      }
+      const result = await companyCollection.insertOne(newCompany)
       res.send(result)
     })
 
