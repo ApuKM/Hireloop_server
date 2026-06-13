@@ -32,6 +32,7 @@ async function startServer() {
     const db = client.db(process.env.DB_NAME);
     const jobsCollection = db.collection("jobs");
     const companyCollection = db.collection("companies");
+    const applicationsCollection = db.collection("application");
 
     // Jobs apis
     app.get("/api/jobs", async (req, res) => {
@@ -52,8 +53,8 @@ async function startServer() {
       const query = {
         _id: new ObjectId(id),
       };
-      const result = await jobsCollection.findOne(query)
-      res.send(result)
+      const result = await jobsCollection.findOne(query);
+      res.send(result);
     });
 
     app.post("/api/jobs", async (req, res) => {
@@ -63,6 +64,18 @@ async function startServer() {
         createdAt: new Date(),
       };
       const result = await jobsCollection.insertOne(newJob);
+      res.send(result);
+    });
+
+    // Applications API
+    app.post("/api/applications", async (req, res) => {
+      const application = req.body;
+      // console.log(application)
+      const newApplication = {
+        ...application,
+        createdAt: new Date(),
+      };
+      const result = await applicationsCollection.insertOne(newApplication);
       res.send(result);
     });
 
