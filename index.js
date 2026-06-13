@@ -2,7 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -29,51 +29,60 @@ async function startServer() {
   try {
     await client.connect();
 
-    const db = client.db(process.env.DB_NAME)
+    const db = client.db(process.env.DB_NAME);
     const jobsCollection = db.collection("jobs");
-    const companyCollection = db.collection("companies")
+    const companyCollection = db.collection("companies");
 
     // Jobs apis
-    app.get("/api/jobs", async(req, res) => {
-        const {companyId, status} = req.query;
-        let query ={}
-        if(companyId){
-            query.companyId = companyId
-        }
-        if(status){
-            query.status = status
-        }
-        const result = await jobsCollection.find(query).toArray();
-        res.send(result)
-    })
+    app.get("/api/jobs", async (req, res) => {
+      const { companyId, status } = req.query;
+      let query = {};
+      if (companyId) {
+        query.companyId = companyId;
+      }
+      if (status) {
+        query.status = status;
+      }
+      const result = await jobsCollection.find(query).toArray();
+      res.send(result);
+    });
 
-    app.post("/api/jobs", async(req, res) => {
-        const job = req.body;
-        const newJob = {
-          ...job,
-          createdAt: new Date(),
-        }
-        const result = await jobsCollection.insertOne(newJob);
-        res.send(result)
-    })
+    app.get("/api/jobs/:id", async (req, res) => {
+      const { id } = req.params;
+      const query = {
+        _id: new ObjectId(id),
+      };
+      const result = await jobsCollection.findOne(query)
+      res.send(result)
+    });
+
+    app.post("/api/jobs", async (req, res) => {
+      const job = req.body;
+      const newJob = {
+        ...job,
+        createdAt: new Date(),
+      };
+      const result = await jobsCollection.insertOne(newJob);
+      res.send(result);
+    });
 
     // Company apis
 
-    app.get("/api/my/company", async(req, res) => {
-      const {recruiterId} = req.query;
-      const result = await companyCollection.findOne({recruiterId})
-      res.send(result || {})
-    })
+    app.get("/api/my/company", async (req, res) => {
+      const { recruiterId } = req.query;
+      const result = await companyCollection.findOne({ recruiterId });
+      res.send(result || {});
+    });
 
-    app.post("/api/company", async(req, res) => {
+    app.post("/api/company", async (req, res) => {
       const company = req.body;
       const newCompany = {
         ...company,
         createdAt: new Date(),
-      }
-      const result = await companyCollection.insertOne(newCompany)
-      res.send(result)
-    })
+      };
+      const result = await companyCollection.insertOne(newCompany);
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log("🍃 Successfully connected to MongoDB!");
