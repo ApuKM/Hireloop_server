@@ -68,6 +68,18 @@ async function startServer() {
     });
 
     // Applications API
+    app.get("/api/applications", async(req, res) => {
+      let query = {}
+      if(req.query.applicantId){
+        query.applicantId = req.query.applicantId
+      }
+      if(req.query.jobId){
+        query.jobId = req.query.jobId
+      }
+      const result = await applicationsCollection.find(query).toArray()
+      res.send(result)
+    })
+
     app.post("/api/applications", async (req, res) => {
       const application = req.body;
       // console.log(application)
