@@ -30,9 +30,12 @@ async function startServer() {
     await client.connect();
 
     const db = client.db(process.env.DB_NAME);
+    const usersCollection = db.collection("user");
     const jobsCollection = db.collection("jobs");
     const companyCollection = db.collection("companies");
     const applicationsCollection = db.collection("application");
+    const plansCollection = db.collection("plans");
+    const subscriptionsCollection = db.collection("subscriptions");
 
     // Jobs apis
     app.get("/api/jobs", async (req, res) => {
@@ -68,17 +71,17 @@ async function startServer() {
     });
 
     // Applications API
-    app.get("/api/applications", async(req, res) => {
-      let query = {}
-      if(req.query.applicantId){
-        query.applicantId = req.query.applicantId
+    app.get("/api/applications", async (req, res) => {
+      let query = {};
+      if (req.query.applicantId) {
+        query.applicantId = req.query.applicantId;
       }
-      if(req.query.jobId){
-        query.jobId = req.query.jobId
+      if (req.query.jobId) {
+        query.jobId = req.query.jobId;
       }
-      const result = await applicationsCollection.find(query).toArray()
-      res.send(result)
-    })
+      const result = await applicationsCollection.find(query).toArray();
+      res.send(result);
+    });
 
     app.post("/api/applications", async (req, res) => {
       const application = req.body;
@@ -107,6 +110,36 @@ async function startServer() {
       };
       const result = await companyCollection.insertOne(newCompany);
       res.send(result);
+    });
+
+    // Plans api?
+    app.get("/api/plans", async (req, res) => {
+      const query = {};
+      if (req.query.plan_id) {
+        query.id = req.query.plan_id;
+      }
+      const result = await plansCollection.findOne(query);
+      res.send(result);
+    });
+
+    // Subscriptions api
+    app.post("/api/subscription", async (req, res) => {
+      const data = req.body;
+      const subInfo = {
+        ...data,
+        createdAt: new Date(),
+      };
+      const result = await subscriptionsCollection.insertOne(subInfo);
+
+      // update the user plan field
+      const filter = {email: data.customerEmail}
+      const updatedDoc = {
+        $set: {
+          plan: data.planId,
+        }
+      }
+      const updatedResult = await usersCollection.updateOne(filter, updatedDoc)
+      res.send(updatedResult);
     });
 
     await client.db("admin").command({ ping: 1 });
