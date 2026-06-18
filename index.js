@@ -36,6 +36,37 @@ async function startServer() {
     const applicationsCollection = db.collection("application");
     const plansCollection = db.collection("plans");
     const subscriptionsCollection = db.collection("subscriptions");
+    const sessionCollection = db.collection("session");
+
+    // Token related
+    const verifyToken = async (req, res, next) => {
+      console.log("Headers", req.headers);
+      const authHeader = req.headers?.authorization;
+      if (!authHeader) {
+        return res.status(401).send({ message: "Unauthorized" });
+      }
+      const token = authHeader.split(" ")[1];
+      if (!token) {
+        return res.status(401).send({ message: "Unauthorized" });
+      }
+
+      const session = await sessionCollection.findOne({ token: token });
+      console.log("session", session);
+
+      const userId = session.userId;
+      const user = await usersCollection.findOne({ _id: userId });
+      console.log("user of the session", user);
+
+      req.user = user;
+      next();
+    };
+
+    const verifySeeker = async (req, res, next) => {
+      if (req.user?.role !== "seeker") {
+        return res.status(403).send({ message: "Forbidden" });
+      }
+      next();
+    };
 
     // Jobs apis
     app.get("/api/jobs", async (req, res) => {
@@ -71,7 +102,7 @@ async function startServer() {
     });
 
     // Applications API
-    app.get("/api/applications", async (req, res) => {
+    app.get("/api/applications", verifyToken, verifySeeker, async (req, res) => {
       let query = {};
       if (req.query.applicantId) {
         query.applicantId = req.query.applicantId;
@@ -94,17 +125,17 @@ async function startServer() {
       res.send(result);
     });
 
-    // Company apis 
+    // Company apis
     // Inefficient way to join/aggregate collection
-    app.get("/api/companies", async (req, res) => {
+    app.get("/api/companies", verifyToken, async (req, res) => {
       const companies = await companyCollection.find({}).toArray();
 
-      for (const company of companies){
+      for (const company of companies) {
         const filter = {
-          companyId: company._id.toString()
-        }
-        const jobCount = await jobsCollection.countDocuments(filter)
-        company.jobCount = jobCount
+          companyId: company._id.toString(),
+        };
+        const jobCount = await jobsCollection.countDocuments(filter);
+        company.jobCount = jobCount;
       }
       res.send(companies);
     });
