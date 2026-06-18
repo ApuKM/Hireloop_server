@@ -96,6 +96,11 @@ async function startServer() {
 
     // Company apis
 
+    app.get("/api/companies", async (req, res) => {
+      const result = await companyCollection.find({}).toArray();
+      res.send(result);
+    });
+
     app.get("/api/my/company", async (req, res) => {
       const { recruiterId } = req.query;
       const result = await companyCollection.findOne({ recruiterId });
@@ -109,6 +114,19 @@ async function startServer() {
         createdAt: new Date(),
       };
       const result = await companyCollection.insertOne(newCompany);
+      res.send(result);
+    });
+
+    app.patch("/api/companies/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedCompany = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: updatedCompany.status,
+        },
+      };
+      const result = await companyCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
 
@@ -132,13 +150,13 @@ async function startServer() {
       const result = await subscriptionsCollection.insertOne(subInfo);
 
       // update the user plan field
-      const filter = {email: data.customerEmail}
+      const filter = { email: data.customerEmail };
       const updatedDoc = {
         $set: {
           plan: data.planId,
-        }
-      }
-      const updatedResult = await usersCollection.updateOne(filter, updatedDoc)
+        },
+      };
+      const updatedResult = await usersCollection.updateOne(filter, updatedDoc);
       res.send(updatedResult);
     });
 
