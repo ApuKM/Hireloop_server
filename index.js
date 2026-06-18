@@ -94,11 +94,19 @@ async function startServer() {
       res.send(result);
     });
 
-    // Company apis
-
+    // Company apis 
+    // Inefficient way to join/aggregate collection
     app.get("/api/companies", async (req, res) => {
-      const result = await companyCollection.find({}).toArray();
-      res.send(result);
+      const companies = await companyCollection.find({}).toArray();
+
+      for (const company of companies){
+        const filter = {
+          companyId: company._id.toString()
+        }
+        const jobCount = await jobsCollection.countDocuments(filter)
+        company.jobCount = jobCount
+      }
+      res.send(companies);
     });
 
     app.get("/api/my/company", async (req, res) => {
