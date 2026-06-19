@@ -40,7 +40,7 @@ async function startServer() {
 
     // Token related
     const verifyToken = async (req, res, next) => {
-      console.log("Headers", req.headers);
+      // console.log("Headers", req.headers);
       const authHeader = req.headers?.authorization;
       if (!authHeader) {
         return res.status(401).send({ message: "Unauthorized" });
@@ -51,11 +51,17 @@ async function startServer() {
       }
 
       const session = await sessionCollection.findOne({ token: token });
-      console.log("session", session);
+      // console.log("session", session);
+       if (!session) {
+        return res.status(401).send({ message: "Unauthorized" });
+      }
 
       const userId = session.userId;
       const user = await usersCollection.findOne({ _id: userId });
-      console.log("user of the session", user);
+      // console.log("user of the session", user);
+       if (!user) {
+        return res.status(401).send({ message: "Unauthorized" });
+      }
 
       req.user = user;
       next();
@@ -63,6 +69,18 @@ async function startServer() {
 
     const verifySeeker = async (req, res, next) => {
       if (req.user?.role !== "seeker") {
+        return res.status(403).send({ message: "Forbidden" });
+      }
+      next();
+    };
+    const verifyRecruiter = async (req, res, next) => {
+      if (req.user?.role !== "recruiter") {
+        return res.status(403).send({ message: "Forbidden" });
+      }
+      next();
+    };
+    const verifyAdmin = async (req, res, next) => {
+      if (req.user?.role !== "admin") {
         return res.status(403).send({ message: "Forbidden" });
       }
       next();
@@ -106,6 +124,11 @@ async function startServer() {
       let query = {};
       if (req.query.applicantId) {
         query.applicantId = req.query.applicantId;
+      }
+
+      console.log(req.user, req.query.applicantId)
+      if(req.user._id.toString() !== req.query.applicantId){
+        return res.status(403).send({message: "Forbidden"})
       }
       if (req.query.jobId) {
         query.jobId = req.query.jobId;
@@ -156,7 +179,7 @@ async function startServer() {
       res.send(result);
     });
 
-    app.patch("/api/companies/:id", async (req, res) => {
+    app.patch("/api/companies/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const updatedCompany = req.body;
       const filter = { _id: new ObjectId(id) };
