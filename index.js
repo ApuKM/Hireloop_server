@@ -52,14 +52,14 @@ async function startServer() {
 
       const session = await sessionCollection.findOne({ token: token });
       // console.log("session", session);
-       if (!session) {
+      if (!session) {
         return res.status(401).send({ message: "Unauthorized" });
       }
 
       const userId = session.userId;
       const user = await usersCollection.findOne({ _id: userId });
       // console.log("user of the session", user);
-       if (!user) {
+      if (!user) {
         return res.status(401).send({ message: "Unauthorized" });
       }
 
@@ -87,18 +87,56 @@ async function startServer() {
     };
 
     // Jobs apis
-    app.get("/api/jobs", async (req, res) => {
-      const { companyId, status } = req.query;
-      let query = {};
-      if (companyId) {
-        query.companyId = companyId;
-      }
-      if (status) {
-        query.status = status;
-      }
-      const result = await jobsCollection.find(query).toArray();
-      res.send(result);
-    });
+   app.get("/api/jobs", async (req, res) => {
+  try {
+    const { companyId, status, jobType, category, isRemote, searchQuery, page, perPage } = req.query;
+//  console.log(page, perPage)
+    let query = {};
+
+    // 1. Existing company/status
+    if (companyId) query.companyId = companyId;
+    if (status) query.status = status;
+
+    // 2. Filters
+    if (jobType && jobType !== "All") {
+      query.jobType = jobType;
+    }
+    if (category && category !== "All") {
+      query.category = category;
+    }
+    if (searchQuery) {
+      query.$or = [
+        { title: { $regex: searchQuery, $options: "i" } },
+        { companyName: { $regex: searchQuery, $options: "i" } },
+      ];
+    }
+    if (isRemote) {
+      query.isRemote = isRemote === "true";
+    }
+
+    // 3. Pagination & Fetching
+    // Convert strings to integers with safe fallbacks
+    const pageNumber = parseInt(page) || 1;
+    const limitNumber = parseInt(perPage) || 12;
+    const skipItems = (pageNumber - 1) * limitNumber;
+
+    // Run both queries in parallel for better performance
+    const [total, jobs] = await Promise.all([
+      jobsCollection.countDocuments(query),
+      jobsCollection
+        .find(query)
+        .skip(skipItems)
+        .limit(limitNumber)
+        .toArray()
+    ]);
+
+    res.send({ total, jobs });
+
+  } catch (error) {
+    console.error("Error fetching jobs:", error);
+    res.status(500).send({ message: "Error fetching jobs", error });
+  }
+});
 
     app.get("/api/jobs/:id", async (req, res) => {
       const { id } = req.params;
@@ -120,22 +158,27 @@ async function startServer() {
     });
 
     // Applications API
-    app.get("/api/applications", verifyToken, verifySeeker, async (req, res) => {
-      let query = {};
-      if (req.query.applicantId) {
-        query.applicantId = req.query.applicantId;
-      }
+    app.get(
+      "/api/applications",
+      verifyToken,
+      verifySeeker,
+      async (req, res) => {
+        let query = {};
+        if (req.query.applicantId) {
+          query.applicantId = req.query.applicantId;
+        }
 
-      console.log(req.user, req.query.applicantId)
-      if(req.user._id.toString() !== req.query.applicantId){
-        return res.status(403).send({message: "Forbidden"})
-      }
-      if (req.query.jobId) {
-        query.jobId = req.query.jobId;
-      }
-      const result = await applicationsCollection.find(query).toArray();
-      res.send(result);
-    });
+        console.log(req.user, req.query.applicantId);
+        if (req.user._id.toString() !== req.query.applicantId) {
+          return res.status(403).send({ message: "Forbidden" });
+        }
+        if (req.query.jobId) {
+          query.jobId = req.query.jobId;
+        }
+        const result = await applicationsCollection.find(query).toArray();
+        res.send(result);
+      },
+    );
 
     app.post("/api/applications", async (req, res) => {
       const application = req.body;
@@ -179,18 +222,23 @@ async function startServer() {
       res.send(result);
     });
 
-    app.patch("/api/companies/:id", verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const updatedCompany = req.body;
-      const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          status: updatedCompany.status,
-        },
-      };
-      const result = await companyCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/api/companies/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const updatedCompany = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            status: updatedCompany.status,
+          },
+        };
+        const result = await companyCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      },
+    );
 
     // Plans api?
     app.get("/api/plans", async (req, res) => {
